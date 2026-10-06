@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0B2545">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<title>TI JOU</title>
+<style>
+:root{--navy:#0B2545;--blue:#13315C;--light:#EEF4ED;--acc:#F2B705;--bg:#F4F6FA;--tx:#0B2545;--card:#fff;--bd:#d5dce8}
+@media(prefers-color-scheme:dark){:root{--bg:#0a1424;--card:#13233f;--tx:#e8eef7;--bd:#2a3d5f}}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,Arial,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--navy);color:#fff;padding:16px;text-align:center;border-bottom:5px solid var(--acc)}
+header small{opacity:.7}header h1{margin:2px 0 0;font-size:20px;color:var(--acc)}
+main{max-width:640px;margin:0 auto;padding:12px}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:10px;padding:12px;margin-bottom:12px}
+label{display:block;font-size:13px;font-weight:600;margin:10px 0 4px}
+input,select,textarea{width:100%;padding:10px;font-size:16px;border:1px solid var(--bd);border-radius:8px;background:var(--card);color:var(--tx);font-family:inherit}
+textarea{min-height:70px;resize:vertical}
+.row{display:flex;gap:8px}.row>div{flex:1}
+button{border:0;border-radius:8px;padding:11px 14px;font-size:15px;font-weight:600;cursor:pointer}
+.pri{background:var(--acc);color:#0B2545;width:100%;margin-top:14px}
+.sec{background:var(--bd);color:var(--tx)}
+.sm{padding:6px 10px;font-size:13px}
+.del{background:#b3261e;color:#fff}
+.item{border-left:5px solid var(--acc)}
+.card h2{border-bottom:2px solid var(--acc);padding-bottom:4px;display:inline-block}
+.item h3{margin:0 0 4px;font-size:16px}
+.item p{margin:3px 0;font-size:14px}
+.muted{opacity:.7}
+.acts{display:flex;gap:6px;margin-top:8px}
+.tools{display:flex;gap:8px;margin-bottom:12px}
+.tools input,.tools select{flex:1}
+dialog{border:0;border-radius:12px;padding:0;width:92%;max-width:600px;background:var(--card);color:var(--tx)}
+dialog::backdrop{background:rgba(0,0,0,.5)}
+dialog form{padding:14px}
+</style>
+</head>
+<body>
+<header><small>Service du Personnel</small><h1>GESTION DE DOSSIER TI JOU</h1></header>
+<main>
+<div class="card">
+<h2 style="margin:0 0 4px;font-size:17px">Arrivée</h2>
+<div id="addForm"></div>
+<button class="pri" id="addBtn">+ AJOUTER DOSSIER</button>
+</div>
+
+<div class="tools">
+<input id="q" type="search" placeholder="Rechercher (N°, ministère…)">
+<select id="fm"><option value="">Tous les ministères</option></select>
+</div>
+<div id="list"></div>
+<div class="tools" style="margin-top:8px">
+<button class="sec sm" id="exp">Exporter</button>
+<button class="sec sm" id="imp">Importer</button>
+<input type="file" id="file" accept="application/json" hidden>
+</div>
+</main>
+
+<dialog id="dlg"><form method="dialog" onsubmit="return false">
+<h2 style="margin:0 0 4px;font-size:17px">Modifier le dossier</h2>
+<div id="editForm"></div>
+<div class="row" style="margin-top:14px">
+<button class="pri" style="margin:0" id="saveBtn">ENREGISTRER</button>
+<button class="sec" id="cancelBtn" style="flex:1">ANNULER</button>
+</div></form></dialog>
+
+<script>
+const MIN=["MEN MAN","MEN MAH","DRSP","CNCT","POLICE","ENVIRONMENT","SDSP II","SDSP F/ho","SRSP","DOUANE","SRB","CF","CRM","ECONOMIE","TRESOR","IMPOT","Topo","Domaine","Amenag","Fop","Inter","Techn","CHRD"];
+const KEY="arrive_dossiers_v1";
+let data=[];let editId=null;
+try{data=JSON.parse(localStorage.getItem(KEY)||"[]")}catch(e){data=[]}
+const $=id=>document.getElementById(id);
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(data))}catch(e){alert("Stockage impossible")}};
+const esc=s=>String(s||"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt=d=>d?d.split("-").reverse().join("/"):"—";
+
+function formHTML(p){return `
+<label>N° Arrivé</label><input type="text" inputmode="numeric" id="${p}num" placeholder="N° Arrivé">
+<label>Date</label><input type="date" id="${p}date">
+<label>Ministère</label><select id="${p}min">${MIN.map(m=>`<option>${m}</option>`).join("")}</select>
+<label>Observations</label><textarea id="${p}obs" placeholder="Observations…"></textarea>
+<div class="row"><div><label>Date S.O</label><input type="date" id="${p}so"></div>
+<div><label>Date rejet</label><input type="date" id="${p}rej"></div></div>`}
+$("addForm").innerHTML=formHTML("a_");
+$("editForm").innerHTML=formHTML("e_");
+$("fm").innerHTML+=MIN.map(m=>`<option>${m}</option>`).join("");
+
+function read(p){return{num:$(p+"num").value.trim(),date:$(p+"date").value,min:$(p+"min").value,obs:$(p+"obs").value.trim(),so:$(p+"so").value,rej:$(p+"rej").value}}
+function fill(p,d){$(p+"num").value=d.num||"";$(p+"date").value=d.date||"";$(p+"min").value=d.min;$(p+"obs").value=d.obs||"";$(p+"so").value=d.so||"";$(p+"rej").value=d.rej||""}
+function reset(){$("a_num").value="";$("a_date").value=new Date().toISOString().slice(0,10);$("a_obs").value="";$("a_so").value="";$("a_rej").value=""}
+
+function render(){
+const q=$("q").value.toLowerCase(),f=$("fm").value;
+const rows=data.filter(d=>(!f||d.min===f)&&(!q||(d.num+" "+d.min+" "+d.obs).toLowerCase().includes(q)))
+.sort((a,b)=>(b.date||"").localeCompare(a.date||""));
+$("list").innerHTML=rows.length?rows.map(d=>`<div class="card item">
+<h3>${d.num?"N° "+esc(d.num)+" · ":""}${esc(d.min)} <span class="muted" style="font-weight:400">· ${fmt(d.date)}</span></h3>
+${d.obs?`<p>${esc(d.obs)}</p>`:""}
+<p class="muted">Date S.O : ${fmt(d.so)} &nbsp;|&nbsp; Date rejet : ${fmt(d.rej)}</p>
+<div class="acts"><button class="sec sm" onclick="edit('${d.id}')">Modifier</button><button class="del sm" onclick="del('${d.id}')">Supprimer</button></div>
+</div>`).join(""):`<p class="muted" style="text-align:center">Aucun dossier. Ajoutez le premier ci-dessus.</p>`}
+
+$("addBtn").onclick=()=>{const d=read("a_");if(!d.date){alert("Choisissez une date");return}
+d.id=Date.now().toString(36);data.push(d);save();reset();render()};
+window.edit=id=>{editId=id;fill("e_",data.find(x=>x.id===id));$("dlg").showModal()};
+window.del=id=>{if(confirm("Supprimer ce dossier ?")){data=data.filter(x=>x.id!==id);save();render()}};
+$("saveBtn").onclick=()=>{const i=data.findIndex(x=>x.id===editId);if(i<0)return;data[i]={...read("e_"),id:editId};save();$("dlg").close();render()};
+$("cancelBtn").onclick=()=>$("dlg").close();
+$("q").oninput=render;$("fm").onchange=render;
+
+$("exp").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,1)],{type:"application/json"}));a.download="arrivee-dossiers.json";a.click()};
+$("imp").onclick=()=>$("file").click();
+$("file").onchange=e=>{const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(Array.isArray(j)){data=j;save();render()}}catch(x){alert("Fichier invalide")}};r.readAsText(e.target.files[0])};
+
+reset();render();
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+</script>
+</body>
+</html>
