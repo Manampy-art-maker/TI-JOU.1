@@ -3,10 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
 <meta name="theme-color" content="#0B2545">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<link rel="manifest" href="manifest.json">
-<link rel="icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>TI JOU</title>
 <style>
@@ -41,6 +41,7 @@ dialog form{padding:14px}
 </style>
 </head>
 <body>
+<button id="instBtn" hidden style="display:none;width:100%;border:0;background:#F2B705;color:#0B2545;font-weight:700;padding:12px;font-size:15px">📲 Installer l'application</button>
 <header><small>Service du Personnel</small><h1>GESTION DE DOSSIER TI JOU</h1></header>
 <main>
 <div class="card">
@@ -118,7 +119,11 @@ $("imp").onclick=()=>$("file").click();
 $("file").onchange=e=>{const r=new FileReader();r.onload=()=>{try{const j=JSON.parse(r.result);if(Array.isArray(j)){data=j;save();render()}}catch(x){alert("Fichier invalide")}};r.readAsText(e.target.files[0])};
 
 reset();render();
-if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));
+let dp=null;
+addEventListener("beforeinstallprompt",e=>{e.preventDefault();dp=e;const b=$("instBtn");b.hidden=false;b.style.display="block"});
+$("instBtn").onclick=async()=>{if(!dp)return;dp.prompt();await dp.userChoice;dp=null;$("instBtn").style.display="none"};
+addEventListener("appinstalled",()=>{$("instBtn").style.display="none"});
+if("serviceWorker" in navigator)addEventListener("load",()=>navigator.serviceWorker.register("service-worker.js").catch(()=>{}));
 </script>
 </body>
 </html>
